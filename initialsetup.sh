@@ -38,7 +38,6 @@ sudo apt-get --assume-yes install mergerfs
 echo ">> Setup rootless docker user"
 sudo groupadd docker
 sudo usermod -aG docker $USER
-newgrp docker
 
 echo ">> Install Docker Engine and Docker Compose"
 sudo apt-get --assume-yes update
