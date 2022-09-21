@@ -11,6 +11,10 @@ echo ">> Begin installing server utilities"
 echo ">> Wireguard VPN Tools"
 sudo apt-get --assume-yes install wireguard-tools
 
+echo ">> lm-sensors"
+sudo apt-get --assume-yes install lm-sensors
+sudo sensors-detect --auto
+
 echo ">> BRTBK"
 sudo apt-get --assume-yes install btrbk
 
@@ -78,6 +82,66 @@ sudo ln -s /usr/bin/msmtp /usr/bin/sendmail
 sudo ln -s /usr/bin/msmtp /usr/sbin/sendmail
 # Set msmtp as mta
 echo "set mta=/usr/bin/msmtp" | sudo tee -a /etc/mail.rc
+echo "[!]"
+echo " "
+echo "To receive server notifications, please enter your email address that should receive notifications"
+echo " "
+echo "[!]"
+read -p 'Enter email address to receive server notifications:' DEFAULTEMAIL
+sudo sh -c "echo default:$DEFAULTEMAIL >> /etc/aliases"
+## Get config file
+sudo tee -a /etc/msmtprc &>/dev/null << EOF
+# Set default values for all following accounts.
+defaults
+auth           on
+tls            on
+#tls_trust_file /etc/ssl/certs/ca-certificates.crt
+#logfile        $HOME/docker/HOST/logs/msmtp.log
+aliases        /etc/aliases
+# smtp provider
+account        default
+host           mail.smtp2go.com
+port           587
+from           FROMADDRESS
+user           SMTPUSER
+password       SMTPPASS
+EOF
+# set SMTP server
+echo "[!]"
+echo "Add SMTP credentials"
+echo "[!]"
+echo "                                                            "
+echo "Would you like to configure sending email now?"
+echo "You need to have an smtp provider account correctly configured with your domain"
+read -p "Do you have your smtp credentials on hand? (y/n) " answer
+case ${answer:0:1} in
+    y|Y )
+    read -p "Enter SMTP server address (or hit ENTER for default: mail.smtp2go.com):" SMTPSERVER
+    SMTPSERVER="${SMTPSERVER:=mail.smtp2go.com}"
+    read -p "Enter SMTP server port (or hit ENTER for default:587):" SMTPPORT
+    SMTPPORT="${SMTPPORT:=587}"
+    read -p 'Enter SMTP username: ' SMTPUSER
+    read -p 'Enter password: ' SMTPPASS
+    read -p 'Enter the from emailaddress that will be shown as sender, for example username@yourdomain.com: ' FROMADDRESS
+    sudo sed -i -e "s#mail.smtp2go.com#$SMTPSERVER#g" /etc/msmtprc
+    sudo sed -i -e "s#587#$SMTPPORT#g" /etc/msmtprc
+    sudo sed -i -e "s#SMTPUSER#$SMTPUSER#g" /etc/msmtprc
+    sudo sed -i -e "s#SMTPPASS#$SMTPPASS#g" /etc/msmtprc
+    sudo sed -i -e "s#FROMADDRESS#$FROMADDRESS#g" /etc/msmtprc
+    echo "Done, now sending you a test email...." 
+    echo " "
+    echo "NOTE: if your SMTP server uses TLS over port 465 and not STARTTLS over 587" 
+    echo "      you must add \"tls_starttls off\" to your /etc/msmtprc"
+    echo "      and the following email test will most likely fail."
+    echo " "
+    printf "Subject: Your Homeserver is almost ready\nHello there, I am almost ready. I can send you emails now." | msmtp -a default $DEFAULTEMAIL
+    echo "Email sent!" 
+    echo "if an error appeared above, the email has not been sent and you made an error or did not configure your domain and smtp provider"
+    ;;
+    * )
+        echo "Not configuring SMTP. Please manually enter your SMTP provider details in file /etc/msmtprc.." 
+    ;;
+esac
 
 echo ">> Disable os-prober"
 # This prevents docker container volumes to be falsely recognized as host system OS and added to boot menu

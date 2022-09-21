@@ -19,7 +19,7 @@ Install the OS of choice, in your own way or using a [bootable live environment]
 * Select BTRFS filesystem with **no swap**
 
 ### **Docker and other tools**
-`cd` to a directory you like downloads to be in , and run the [setup script](https://github.com/minteeaa/Homeserver/blob/master/initialsetup.sh)
+`cd` to a directory you like downloads to be in, and run the [setup script](https://github.com/minteeaa/Homeserver/blob/master/initialsetup.sh)
 ```
 wget https://raw.githubusercontent.com/minteeaa/Homeserver/master/initialsetup.sh
 bash initialsetup.sh
@@ -30,7 +30,32 @@ bash initialsetup.sh
 
 ### **Filesystem**
 My homeserver follows [zilexa's folderstructure guidelines](https://github.com/zilexa/Homeserver/tree/master/filesystem) to this point, via *option 1* on the datapool guide.
-##### yes, i am lazy, but why try to explain something that's already been explained perfectly elsewhere?
+
+*One slightly important note:* when using BTRFS to create subvolumes and mount them in `fstab`, using the subvolume name alone, e.g.
+```
+UUID=...      /mnt/pool/Media   btrfs   subvol=Media,defaults,noatime  0 0
+``` 
+*may not work* and will return a ` No such file or directory` error from `mount`. Unfortunately, this has been an ongoing issue with BTRFS on Ubuntu for a very long time.
+
+To get around this, when creating a subvolume, check the ID of the created subvolume and use that in your `fstab`.
+```
+# sudo btrfs subvolume create /mnt/disks/data0/datastore
+Create subvolume '/mnt/disks/data0/ncstore'
+# sudo btrfs subvolume list /mnt/pool
+ID 258 gen 115 top level 5 path mnt/disks/data0/datastore
+```
+`fstab`:
+```
+UUID=...      /mnt/pool/Media   btrfs   subvolid=258,defaults,noatime  0 0
+```
+Yes, this does make it a bit difficult to keep track of subvolume names, but this is how I found it simplest to fix this issue; and also consider these probably wont be changed after they're set.
+
+***
+
+### **Docker**
+Once you've gone through the filesystem setup and you're ready to start your containers, step back and take a look through and/or edit [docker compose](https://github.com/minteeaa/Homeserver/blob/master/docker/docker-compose.yml) file and be sure to fill out the [.env](https://github.com/minteeaa/Homeserver/blob/master/docker/.env) to your liking. Certain containers *will not run* if you don't.
+
+In no way do I consider myself an expert when it comes to the best practices of docker, but I will continue to make the best effort I can to adhere to them.
 
 ***
 
