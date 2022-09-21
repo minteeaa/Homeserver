@@ -29,10 +29,10 @@ sudo apt-get --assume-yes install smartmontools
 echo ">> Bleachbit"
 sudo apt-get --assume-yes install bleachbit
 
-echo ">> MergerFS"
+echo ">> HD Parm"
 sudo apt-get --assume-yes install hdparm
 
-echo ">> Nocache"
+echo ">> MergerFS"
 sudo apt-get --assume-yes install mergerfs
 
 echo ">> Setup rootless docker user"
