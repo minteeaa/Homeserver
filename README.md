@@ -7,14 +7,10 @@
 
 this is meant more to be a backup for the important parts in case I ever need it. any suggestions are welcome. 
 
-***
-
 ## **OS**
 - Debian based OS (my server uses [Ubuntu Server 22.04.1](https://ubuntu.com/download/server))
     - Using server with no DE as this is not a workstation for myself; it is simply a standalone server I can access through SSH
 - BTRFS filesystem
-
-***
 
 ## **Installation**
 ### **Installing the OS**
