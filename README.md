@@ -28,6 +28,12 @@ bash initialsetup.sh
 
 ***
 
+### **Filesystem**
+My homeserver follows [zilexa's folderstructure guidelines](https://github.com/zilexa/Homeserver/tree/master/filesystem) to this point, via *option 1* on the datapool guide.
+##### yes, i am lazy, but why try to explain something that's already been explained perfectly elsewhere?
+
+***
+
 ### **That can't be all, right?**
 it absolutely isn't the end of this README. 
 
