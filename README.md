@@ -1,6 +1,6 @@
 # <p align="center">**mint-server**</p>
-## <p align="center">not really a guide, or a fully-fledged homeserver setup, but it works, and is 99% stable. and it's also my personal setup.</p>
-## <p align="center">very large thanks to [zilexa](https://github.com/zilexa) and their [homeserver repo](https://github.com/zilexa/Homeserver), without it I  would not have set this up so easily. *this homeserver setup is heavily based off of the mentioned repository. if you use Arch, go check it out.*</p>
+### <p align="center">not really a guide, or a fully-fledged homeserver setup, but it works, and is 99% stable. and it's also my personal setup.</p>
+### <p align="center">very large thanks to [zilexa](https://github.com/zilexa) and their [homeserver repo](https://github.com/zilexa/Homeserver), without it I  would not have set this up so easily. *this homeserver setup is heavily based off of the mentioned repository. if you use Arch, go check it out.*</p>
 
 # **Info**
 **this setup is not at all finished, and there will be more added to this repo as time goes on and I set up more parts of the homeserver.**
