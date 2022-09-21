@@ -19,9 +19,9 @@ Install the OS of choice, in your own way or using a [bootable live environment]
 * Select BTRFS filesystem with **no swap**
 
 ### **Docker and other tools**
-`cd` to a directory you like downloads to be in , and run the [setup script](https://github.com/minteeaa/homeserver/blob/master/initialsetup.sh)
+`cd` to a directory you like downloads to be in , and run the [setup script](https://github.com/minteeaa/Homeserver/blob/master/initialsetup.sh)
 ```
-wget https://raw.githubusercontent.com/minteeaa/homeserver/master/initialsetup.sh
+wget https://raw.githubusercontent.com/minteeaa/Homeserver/master/initialsetup.sh
 bash initialsetup.sh
 ```
 ##### installs Docker using the repository method and by [abiding to the post-install docs](https://docs.docker.com/engine/install/linux-postinstall/)
