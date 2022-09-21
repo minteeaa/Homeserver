@@ -1,0 +1,420 @@
+## COMMON COMMANDS:
+# Check for typos: docker-compose config 
+# Run: docker-compose up -d 
+# Stop a container: docker-compose stop containername
+# Remove a stopped container: docker-compose rm containername 
+# Stop all containers: docker kill $(docker ps -q)
+# Remove stopped containers: docker container prune
+# Stop & remove containers: docker rm $(docker ps -a -q) 
+# Remove everything related to stopped containers: sudo docker system prune --all --volumes --force
+#
+## Docker Compose Config Version 3.8
+## Docker Compose v2
+## Homeserver docker compose by mintea for Ubuntu/Debian based distros
+## Heavily based off of zilexa's Homeserver config for Arch (github@zilexa/homeserver)
+#
+version: "3.8"
+x-common:
+  database:
+    &db-environment
+    # Do not remove the "&db-password" from the end of the line below, it is important
+    # for Panel functionality.
+    MYSQL_PASSWORD: &db-password "changeme"
+    MYSQL_ROOT_PASSWORD: "changeme"
+  panel:
+    &panel-environment
+    APP_URL: "https://ptero.$DOMAIN"
+    # A list of valid timezones can be found here: http://php.net/manual/en/timezones.php
+    APP_TIMEZONE: "America/New_York"
+    APP_SERVICE_AUTHOR: $USEREMAIL
+    TRUSTED_PROXIES: "*" # Set this to your proxy IP
+    # Uncomment the line below and set to a non-empty value if you want to use Let's Encrypt
+    # to generate an SSL certificate for the Panel.
+    # LE_EMAIL: ""
+  mail:
+    &mail-environment
+    MAIL_FROM: "noreply@example.com"
+    MAIL_DRIVER: "smtp"
+    MAIL_HOST: "mail"
+    MAIL_PORT: "1025"
+    MAIL_USERNAME: ""
+    MAIL_PASSWORD: ""
+    MAIL_ENCRYPTION: "true"
+
+services:
+#
+# Homarr Dashboard
+#
+  homarr:
+    container_name: homarr
+    image: ghcr.io/ajnart/homarr:latest
+    restart: unless-stopped
+    networks:
+      - web-proxy
+    volumes:
+      - ./homarr/configs:/app/data/configs
+      - ./homarr/icons:/app/public/icons
+      - /var/run/docker.sock:/var/run/docker.sock 
+    ports:
+      - '7575:7575'
+    labels:
+      caddy: http://homepage.o
+      caddy.reverse_proxy: "{{upstreams 7575}}"
+      plugsy.name: Homarr
+      plugsy.link: http://homepage.o
+      plugsy.category: System
+#
+# Dash
+#
+  dash:
+    container_name: dash
+    image: mauricenino/dashdot:latest
+    restart: unless-stopped
+    privileged: true
+    networks:
+      - web-proxy
+    ports:
+      - '81:3001'
+    volumes:
+      - /:/mnt/host:ro
+    labels:
+      caddy: http://dash.o
+      caddy.reverse_proxy: "{{upstreams 3001}}"
+      plugsy.name: Dash Dot
+      plugsy.link: http://dash.o
+      plugsy.parents: Homarr
+#
+# Portainer
+#
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce
+    restart: always
+    networks: 
+      - web-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $DOCKERDIR/portainer/data:/data
+    ports:
+      - 9000:9000
+    labels:
+      caddy: http://docker.o
+      caddy.reverse_proxy: "{{upstreams 9000}}"
+      plugsy.name: Docker
+      plugsy.link: http://docker.o/
+      plugsy.category: System
+#
+# Caddy Reverse Proxy
+#
+  caddy:
+    container_name: web-proxy
+    image: lucaslorentz/caddy-docker-proxy:ci-alpine
+    restart: always
+    networks: 
+      - web-proxy
+    environment:
+      - CADDY_INGRESS_NETWORKS=web-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $DOCKERDIR/caddy/caddy_data:/data
+      - $DOCKERDIR/caddy/config:/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 443:443
+      - 80:80
+    labels:
+      caddy.email: $EMAIL
+      caddy_0: http://adguard.o
+      caddy_0.reverse_proxy: host.docker.internal:85
+      caddy_1: http://vpn.o
+      caddy_1.reverse_proxy: host.docker.internal:5000
+      plugsy.name: Caddy web-proxy
+      plugsy.category: System
+#
+# Plugsy
+#
+  plugsy:
+    container_name: plugsy
+    image: plugsy/core
+    restart: always
+    networks: 
+      - web-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    #  - $DOCKERDIR/dashboard/config.json:/config.json
+    #ports:
+    #  - 8000:3000
+    extra_hosts:
+      - g.o:host-gateway  
+    labels:
+      caddy: http://g.o
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+#
+# Adguard Home
+#
+  adguard:
+    container_name: adguard
+    image: adguard/adguardhome
+    restart: always
+    network_mode: host
+    volumes:
+       - $DOCKERDIR/adguardhome/conf:/opt/adguardhome/conf
+    labels:
+      plugsy.name: AdGuard
+      plugsy.link: http://adguard.o/
+      plugsy.category: Network
+#
+# Unbound DNS Server
+#
+  unbound:
+    container_name: unbound
+    image: klutchell/unbound
+    restart: always
+    networks: 
+      - unbound
+    ports:
+      - 5335:53/tcp
+      - 5335:53/udp
+    labels:
+      plugsy.name: Unbound DNS
+      plugsy.parents: AdGuard
+#
+# Castblock
+#
+  castblock:
+    container_name: castblock
+    image: erdnaxeli/castblock:latest
+    restart: always
+    network_mode: host
+    cap_add: 
+      - NET_ADMIN
+    environment:
+      DEBUG: 'true'
+      OFFSET: 1
+      CATEGORIES: sponsor,interaction
+      MUTE_ADS: 'true'
+    labels:
+      plugsy.name: CastBlock
+      plugsy.parents: AdGuard
+#
+# VPN / Wireguard Portal
+#
+  VPN-portal:
+    container_name: vpn-portal
+    image: ngoduykhanh/wireguard-ui:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    network_mode: host
+    environment:
+      SESSION_SECRET: $WGPORTALSECRET
+      WGUI_USERNAME: $USER
+      WGUI_PASSWORD: $PW
+      WGUI_CONFIG_FILE_PATH: /etc/wireguard/wg0.conf
+      WGUI_ENDPOINT_ADDRESS: $DOMAIN
+      WGUI_DNS: $WGIP
+      WGUI_PERSISTENT_KEEPALIVE: 25
+      WGUI_SERVER_INTERFACE_ADDRESSES: $WGIP/24
+      WGUI_SERVER_LISTEN_PORT: $WGPORT
+      WGUI_SERVER_POST_UP_SCRIPT: $WGPOSTUP
+      WGUI_SERVER_POST_DOWN_SCRIPT: $WGPOSTDOWN
+      WGUI_DEFAULT_CLIENT_ALLOWED_IPS: $WGIP/24
+      WGUI_DEFAULT_CLIENT_EXTRA_ALLOWED_IPS: $LAN_ADDRESS_RANGES
+      SMTP_HOSTNAME: $SMTP
+      SMTP_PORT: $SMTPPORT
+      SMTP_USERNAME: $SMTPUSER
+      SMTP_PASSWORD: $SMTPPASS
+      SMTP_AUTH_TYPE: LOGIN
+      EMAIL_FROM_ADDRESS: $RECIPIENT
+      EMAIL_FROM_NAME: $SMTPUSER
+    logging:
+      driver: json-file
+      options:
+        max-size: 15m
+    volumes:
+      - $DOCKERDIR/vpn-portal/db:/app/db
+      - /etc/wireguard:/etc/wireguard  
+    labels:
+      plugsy.name: VPN portal
+      plugsy.link: http://vpn.o/
+      plugsy.category: Network
+#
+# Firefox Sync Server
+#
+  firefox-sync:
+    container_name: firefox-sync
+    image: crazymax/firefox-syncserver:latest
+    restart: always
+    networks: 
+      - web-proxy
+    environment: 
+      FF_SYNCSERVER_PUBLIC_URL: https://firefox.$DOMAIN
+      FF_SYNCSERVER_SECRET: $FFSYNCSECRET
+      FF_SYNCSERVER_FORWARDED_ALLOW_IPS: '*'
+      FF_SYNCSERVER_FORCE_WSGI_ENVIRON: 'true'
+      FF_SYNCSERVER_ALLOW_NEW_USERS: 'false'
+      FF_SYNCSERVER_LOGLEVEL: debug
+      FF_SYNCSERVER_ACCESSLOG: 'true'
+    volumes:
+      - $DOCKERDIR/firefox-sync:/data
+    labels:
+      caddy: firefox.$DOMAIN
+      caddy.reverse_proxy: "{{upstreams 5000}}"
+      plugsy.name: Firefox Sync
+      plugsy.category: Cloud
+#
+# Bitwarden / Vaultwarden
+#
+  vaultwarden:
+    container_name: vaultwarden
+    image: vaultwarden/server
+    restart: always
+    healthcheck:
+      interval: 5m
+    networks: 
+      - web-proxy
+    volumes:
+      - $DOCKERDIR/vaultwarden:/data
+    environment:
+      WEBSOCKET_ENABLED: 'true'
+      DOMAIN: https://vault.$DOMAIN
+      SIGNUPS_ALLOWED: 'false'
+      ADMIN_TOKEN: $VAULTWARDENTOKEN
+    labels:
+      caddy: vault.$DOMAIN
+      caddy.reverse_proxy_0: "{{upstreams 80}}"
+      # Required extra headers
+      caddy.encode: gzip
+      caddy.header.X-XSS-Protection: '"1; mode=block;"'
+      caddy.header.X-Frame-Options: "DENY"
+      caddy.header.X-Content-Type-Options: "none"
+      caddy.reverse_proxy_1: "/notifications/hub/negotiate {{upstreams 80}}"
+      caddy.reverse_proxy_2: "/notifications/hub {{upstreams 3012}}"
+      plugsy.name: Vaultwarden
+      plugsy.link: https://vault.$DOMAIN
+      plugsy.category: Cloud
+#
+# Ptero Panel
+#
+  database:
+    container_name: ptero-db
+    image: mariadb:latest
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - "/srv/pterodactyl/database:/var/lib/mysql"
+    environment:
+      <<: *db-environment
+      MYSQL_DATABASE: "panel"
+      MYSQL_USER: "pterodactyl"
+    networks:
+      - ptero
+  cache:
+    container_name: ptero-cache
+    image: redis:alpine
+    restart: always
+    networks:
+      - ptero
+  panel:
+    container_name: ptero-panel
+    image: ghcr.io/pterodactyl/panel:latest
+    restart: always
+    depends_on:
+      - database
+      - cache
+    volumes:
+      - "/srv/pterodactyl/var/:/app/var/"
+      - "/srv/pterodactyl/nginx/:/etc/nginx/http.d/"
+      - "/srv/pterodactyl/certs/:/etc/letsencrypt/"
+      - "/srv/pterodactyl/logs/:/app/storage/logs"
+    environment:
+      <<: [*panel-environment, *mail-environment]
+      DB_PASSWORD: *db-password
+      APP_ENV: "production"
+      APP_ENVIRONMENT_ONLY: "false"
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      QUEUE_DRIVER: "redis"
+      REDIS_HOST: "cache"
+      DB_HOST: "database"
+      DB_PORT: "3306"
+    networks:
+      - web-proxy
+      - ptero
+    labels:
+      caddy: ptero.$DOMAIN
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      plugsy.name: Ptero Panel
+      plugsy.link: https://ptero.$DOMAIN
+      plugsy.category: Games
+#
+# Ptero Wings
+# Already has one node setup going, still requires domain to function
+#
+  wings:
+    container_name: wings-1
+    image: ghcr.io/pterodactyl/wings:latest
+    restart: always
+    networks:
+      - wings0
+      - web-proxy
+    ports:
+      - "8080:8080"
+      - "2022:2022"
+    tty: true
+    environment:
+      TZ: "UTC"
+      WINGS_UID: 988
+      WINGS_GID: 988
+      WINGS_USERNAME: pterodactyl
+    volumes:
+      - "$DATAPOOL/ptero/node01:$DATAPOOL/ptero/node01"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/var/lib/docker/containers/:/var/lib/docker/containers/"
+      - "/etc/pterodactyl/:/etc/pterodactyl/"
+      - "/var/lib/pterodactyl/:/var/lib/pterodactyl/"
+      - "/var/log/pterodactyl/:/var/log/pterodactyl/"
+      - "/tmp/pterodactyl/:/tmp/pterodactyl/"
+      - "/etc/ssl/certs:/etc/ssl/certs:ro"
+      # you may need /srv/daemon-data if you are upgrading from an old daemon
+      #- "/srv/daemon-data/:/srv/daemon-data/"
+      # Required for ssl if you use let's encrypt. uncomment to use.
+      #- "/etc/letsencrypt/:/etc/letsencrypt/"
+    labels:
+      caddy: node-01.$DOMAIN
+      caddy.reverse_proxy: "{{upstreams 443}}"
+#
+# Lineage For MicroG Build Image (for my OP8T/kebab)
+#
+  microG:
+    container_name: microG-build
+    image: lineageos4microg/docker-lineage-cicd
+    environment:
+      BRANCH_NAME: lineage-19.1
+      DEVICE_LIST: kebab
+      SIGN_BUILDS: true
+      SIGNATURE_SPOOFING: restricted
+      WITH_GMS: true
+    volumes:
+      - /home/user/lineage:/srv/src
+      - /home/user/zips:/srv/zips
+      - /home/user/logs:/srv/logs
+      - /home/user/cache:/srv/ccache
+      - /home/user/keys:/srv/keys
+      - /home/user/manifests:/srv/local_manifests
+#
+# Network Config
+#
+networks:
+  wings0:
+    name: wings0
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: wings0
+  web-proxy:
+    external: true
+  ptero:
+    driver: bridge
+  unbound:
+    driver: bridge
