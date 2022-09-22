@@ -143,6 +143,20 @@ case ${answer:0:1} in
     ;;
 esac
 
+# Disable systemd-resolved so adguard can bind to port 53
+echo ">> Disable systemd-resolved"
+sudo mkdir -p /etc/systemd/resolved.conf.d
+sudo tee -a /etc/systemd/resolved.conf.d/adguardhome.conf &>/dev/null << EOF
+[Resolve]
+DNS=127.0.0.1
+DNSStubListener=no
+EOF
+
+sudo mv /etc/resolv.conf /etc/resolv.conf.backup
+sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+sudo systemctl reload-or-restart systemd-resolved
+
 echo ">> Disable os-prober"
 # This prevents docker container volumes to be falsely recognized as host system OS and added to boot menu
 sudo sed -i -e "s^GRUB_DISABLE_OS_PROBER=false^GRUB_DISABLE_OS_PROBER=true^g" /etc/default/grub
